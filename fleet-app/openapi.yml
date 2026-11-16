@@ -1,0 +1,263 @@
+openapi: 3.0.3
+info:
+  title: Smart Fleet Tracking & Delivery Analytics Engine - API
+  version: 0.1.0
+  description: |
+    API de la aplicación web administrativa (prototipo).
+    Autenticación con sesión por cookie `fleet.sid` (httpOnly).
+    Roles: `despachador` y `analista`.
+servers:
+  - url: http://localhost:3000
+    description: Desarrollo local
+
+tags:
+  - name: Sistema
+  - name: Autenticación
+  - name: Zonas
+
+paths:
+  /api/health:
+    get:
+      tags: [Sistema]
+      summary: Estado del servicio y de la conexión a MongoDB
+      operationId: getHealth
+      responses:
+        "200":
+          description: Servicio operativo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: MongoDB no disponible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /api/auth/login:
+    post:
+      tags: [Autenticación]
+      summary: Iniciar sesión
+      operationId: login
+      description: Crea una sesión y responde con la cookie `fleet.sid`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              username: despachador1
+              password: "********"
+      responses:
+        "200":
+          description: Sesión creada
+          headers:
+            Set-Cookie:
+              description: Cookie de sesión (httpOnly, sameSite=lax)
+              schema:
+                type: string
+                example: fleet.sid=s%3A...; Path=/; HttpOnly; SameSite=Lax
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: { code: INVALID_CREDENTIALS, message: Usuario o contraseña incorrectos }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/auth/logout:
+    post:
+      tags: [Autenticación]
+      summary: Cerrar sesión
+      operationId: logout
+      description: Destruye la sesión en el servidor y limpia la cookie.
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Sesión cerrada
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/me:
+    get:
+      tags: [Autenticación]
+      summary: Usuario de la sesión actual
+      operationId: getMe
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/zonas:
+    get:
+      tags: [Zonas]
+      summary: Zonas de NYC en formato GeoJSON (para el mapa)
+      operationId: getZonas
+      description: |
+        Devuelve un FeatureCollection de polígonos en WGS84 (EPSG:4326).
+        Disponible para cualquier usuario autenticado.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: FeatureCollection de zonas
+          content:
+            application/geo+json:
+              schema:
+                $ref: "#/components/schemas/ZonasGeoJSON"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Las zonas aún no se han cargado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: fleet.sid
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 40
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          format: password
+
+    User:
+      type: object
+      required: [id, username, name, role]
+      properties:
+        id:
+          type: string
+          example: 66f1c0a2b7e4c1a9d8e5f001
+        username:
+          type: string
+          example: despachador1
+        name:
+          type: string
+          example: Ana Despachadora
+        role:
+          type: string
+          enum: [despachador, analista]
+
+    Health:
+      type: object
+      required: [status, mongo]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        mongo:
+          type: string
+          enum: [up, down]
+        uptime_s:
+          type: number
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: UNAUTHORIZED
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+
+    ZonasGeoJSON:
+      type: object
+      required: [type, features]
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            type: object
+            required: [type, geometry, properties]
+            properties:
+              type:
+                type: string
+                enum: [Feature]
+              geometry:
+                type: object
+                description: Polygon o MultiPolygon en WGS84
+              properties:
+                type: object
+                required: [zone_id, zone, borough]
+                properties:
+                  zone_id:
+                    type: integer
+                    description: LocationID de TLC
+                    example: 161
+                  zone:
+                    type: string
+                    example: Midtown Center
+                  borough:
+                    type: string
+                    example: Manhattan
+
+  responses:
+    BadRequest:
+      description: Solicitud inválida
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: { code: VALIDATION_ERROR, message: Datos inválidos }
+    Unauthorized:
+      description: No hay sesión activa
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: { code: UNAUTHORIZED, message: Inicia sesión para continuar }
+    TooManyRequests:
+      description: Demasiados intentos; espera antes de reintentar
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

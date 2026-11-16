@@ -1,0 +1,50 @@
+import { MongoClient } from "mongodb";
+import { env } from "./env.js";
+
+let client = null;
+let db = null;
+
+export async function connectDb() {
+  if (db) return db;
+
+  client = new MongoClient(env.mongoUri, { serverSelectionTimeoutMS: 5000 });
+  await client.connect();
+  db = client.db(env.mongoDb);
+  await db.command({ ping: 1 });
+  await ensureIndexes(db);
+
+  console.log(`MongoDB conectado (base "${env.mongoDb}")`);
+  return db;
+}
+
+async function ensureIndexes(database) {
+  // Un usuario por username (lo usaremos en el login)
+  await database.collection("users").createIndex({ username: 1 }, { unique: true });
+}
+
+export function getClient() {
+  if (!client) throw new Error("MongoDB no está conectado");
+  return client;
+}
+
+export function getDb() {
+  if (!db) throw new Error("MongoDB no está conectado");
+  return db;
+}
+
+export async function pingDb() {
+  try {
+    await getDb().command({ ping: 1 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function closeDb() {
+  if (client) {
+    await client.close();
+    client = null;
+    db = null;
+  }
+}

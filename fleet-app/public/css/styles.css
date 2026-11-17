@@ -43,3 +43,48 @@ input, select { width: 100%; padding: .5rem .6rem; border: 1px solid var(--borde
   .sidebar { border-right: 0; border-bottom: 1px solid var(--border); order: 2; grid-row: 3; }
   .map-wrap { grid-row: 2; }
 }
+
+/* ===== Roles, pestañas y vistas ===== */
+[hidden] { display: none !important; }
+
+.tabs { display: flex; gap: 4px; margin-left: 24px; }
+.tabs button {
+  background: transparent; border: 0; color: #9aa3b5; padding: 8px 14px;
+  border-radius: 8px; cursor: pointer; font: inherit;
+}
+.tabs button:hover { color: #fff; background: rgba(255, 255, 255, .06); }
+.tabs button.active { color: #fff; background: rgba(255, 255, 255, .12); }
+
+.view-mapa { display: contents; } /* conserva el grid .app: sidebar + mapa */
+.view.panel {
+  grid-column: 1 / -1; overflow: auto; padding: 24px;
+  display: flex; justify-content: center; align-items: flex-start;
+}
+.card.wide { width: 100%; max-width: 960px; }
+.form { max-width: 460px; width: 100%; display: grid; gap: 12px; }
+.form label { display: grid; gap: 6px; }
+.ok { color: #16a34a; margin: 0; }
+
+.table-wrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th, .table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+.status { text-transform: capitalize; }
+.status-programado { color: #60a5fa; }
+.status-en_ruta { color: #f59e0b; }
+.status-completado { color: #16a34a; }
+.status-cancelado { color: #dc2626; }
+
+.heat { display: grid; gap: 8px; margin: 12px 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+
+.kpi-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0 24px; }
+.kpi { background: rgba(255, 255, 255, .05); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+.kpi strong { font-size: 24px; }
+.kpi span { color: #9aa3b5; font-size: 13px; }
+
+.chart svg { width: 100%; height: auto; }
+.chart .grid { stroke: rgba(255, 255, 255, .1); }
+.chart .axis { fill: #9aa3b5; font-size: 11px; }
+.chart .bar { fill: #3b82f6; }
+.chart .bar:hover { fill: #60a5fa; }

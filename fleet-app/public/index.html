@@ -28,12 +28,98 @@
     <div id="app-view" class="app" hidden>
       <header class="topbar">
         <strong>Smart Fleet Tracking</strong>
+        <nav id="tabs" class="tabs">
+          <button type="button" data-view="mapa" data-roles="despachador analista">Mapa</button>
+          <button type="button" data-view="nueva" data-roles="despachador">Nueva operación</button>
+          <button type="button" data-view="ops" data-roles="despachador analista">Operaciones</button>
+          <button type="button" data-view="kpis" data-roles="analista">Dashboard</button>
+        </nav>
         <span class="spacer"></span>
         <span id="user-info" class="muted"></span>
         <button id="logout-btn" class="btn btn-ghost">Salir</button>
       </header>
 
-      <aside class="sidebar">
+      <!-- Vista: mapa (sidebar + mapa) -->
+      <div id="view-mapa" class="view view-mapa">
+        <aside class="sidebar">
+          <h2>Zonas de NYC</h2>
+          <input id="search" type="search" placeholder="Buscar zona…" aria-label="Buscar zona" />
+          <select id="borough-filter" aria-label="Filtrar por borough"></select>
+
+          <div id="heat-controls" class="heat" data-roles="analista" hidden>
+            <label>Capa de métricas
+              <select id="heat-mode" aria-label="Capa del mapa">
+                <option value="borough">Por borough</option>
+                <option value="slow_pct">% de viajes lentos</option>
+                <option value="cluster">Congestión (clúster)</option>
+              </select>
+            </label>
+            <div id="legend" class="legend" hidden></div>
+          </div>
+
+          <p id="count" class="muted"></p>
+          <ul id="zone-list" class="zone-list"></ul>
+          <p id="zones-error" class="error" role="alert" hidden></p>
+        </aside>
+
+        <section class="map-wrap">
+          <div id="map" aria-label="Mapa de zonas"></div>
+          <div id="zone-info" class="zone-info" hidden></div>
+        </section>
+      </div>
+
+      <!-- Vista: nueva operación (despachador) -->
+      <section id="view-nueva" class="view panel" data-roles="despachador" hidden>
+        <form id="despacho-form" class="card form" novalidate>
+          <h2>Nueva operación</h2>
+          <label>Zona de origen <select id="d-origin" required></select></label>
+          <label>Zona de destino <select id="d-dest" required></select></label>
+          <label>Salida <input id="d-departure" type="datetime-local" required /></label>
+          <label>Vehículo
+            <select id="d-vehicle" required></select>
+          </label>
+          <p id="d-error" class="error" role="alert" hidden></p>
+          <p id="d-ok" class="ok" role="status" hidden></p>
+          <button type="submit" class="btn">Registrar operación</button>
+        </form>
+      </section>
+
+      <!-- Vista: operaciones -->
+      <section id="view-ops" class="view panel" hidden>
+        <div class="card wide">
+          <h2 id="ops-title">Operaciones</h2>
+          <div class="table-wrap">
+            <table id="ops-table" class="table">
+              <thead>
+                <tr>
+                  <th>Salida</th><th>Origen</th><th>Destino</th><th>Vehículo</th>
+                  <th>Estado</th><th>Duración est.</th><th>Registró</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p id="ops-empty" class="muted" hidden>Aún no hay operaciones.</p>
+          <p id="ops-error" class="error" role="alert" hidden></p>
+        </div>
+      </section>
+
+      <!-- Vista: dashboard (analista) -->
+      <section id="view-kpis" class="view panel" data-roles="analista" hidden>
+        <div class="card wide">
+          <h2>KPIs operativos <small id="kpi-updated" class="muted"></small></h2>
+          <div id="kpi-cards" class="kpi-cards"></div>
+          <h3>Duración promedio por hora</h3>
+          <div id="kpi-chart" class="chart"></div>
+          <p id="kpi-empty" class="muted" hidden>
+            Aún no hay métricas cargadas. <code>metricas_zona_hora</code>.
+          </p>
+          <p id="kpi-error" class="error" role="alert" hidden></p>
+        </div>
+      </section>
+    </div>
+
+      <!--aside class="sidebar">
         <h2>Zonas de NYC</h2>
         <input id="search" type="search" placeholder="Buscar zona…" aria-label="Buscar zona" />
         <select id="borough-filter" aria-label="Filtrar por borough"></select>
@@ -46,7 +132,7 @@
         <div id="map" aria-label="Mapa de zonas"></div>
         <div id="zone-info" class="zone-info" hidden></div>
       </section>
-    </div>
+    </div-->
 
     <script src="/vendor/leaflet/leaflet.js"></script>
     <script type="module" src="/js/app.js"></script>

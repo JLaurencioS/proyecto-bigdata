@@ -16,6 +16,9 @@ import healthRouter from "./routes/health.js";
 import authRouter from "./routes/auth.js";
 import zonasRouter from "./routes/zonas.js";
 
+import despachosRouter from "./routes/despachos.js";
+import analyticsRouter from "./routes/analytics.js";
+
 import cookieParser from "cookie-parser";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -120,6 +123,9 @@ export function createApp() {
   app.use("/api", healthRouter);
   app.use("/api/auth", authRouter);
   app.use("/api", zonasRouter);
+
+  app.use("/api", despachosRouter);
+  app.use("/api", analyticsRouter);
 
   // --- Errores ---
   app.use(notFound);

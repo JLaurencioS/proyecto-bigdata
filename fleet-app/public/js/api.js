@@ -27,4 +27,8 @@ export const api = {
   logout: () => request("POST", "/api/auth/logout"),
   me: () => request("GET", "/api/auth/me"),
   zonas: () => request("GET", "/api/zonas"),
+  despachos: (limit = 20) => request("GET", `/api/despachos?limit=${limit}`),
+  crearDespacho: (body) => request("POST", "/api/despachos", body),
+  kpis: () => request("GET", "/api/kpis"),
+  zonasMetricas: () => request("GET", "/api/zonas/metricas"),
 };

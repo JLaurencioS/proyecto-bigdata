@@ -24,6 +24,9 @@ async function ensureIndexes(database) {
   const zonas = database.collection("zonas");
   await zonas.createIndex({ zone_id: 1 }, { unique: true });
   await zonas.createIndex({ geometry: "2dsphere" });
+  
+  await database.collection("despachos").createIndex({ created_by: 1, created_at: -1 });
+  await database.collection("metricas_zona_hora").createIndex({ zone_id: 1, hour: 1 });
 }
 
 export function getClient() {

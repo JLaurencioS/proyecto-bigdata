@@ -1,4 +1,5 @@
 import { api } from "./api.js";
+import { initDespachoForm, bindDespachoForm, loadOps, loadKpis } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 const PALETTE = {
@@ -9,6 +10,10 @@ const colorOf = (b) => PALETTE[b] || "#6b7385";
 const ROLES = { despachador: "Despachador", analista: "Analista" };
 
 let map, layerGroup, layersById = new Map(), features = [], selectedId = null;
+let currentUser = null;
+let metricsById = new Map();
+let heatMode = "borough";
+let activeView = "mapa";
 
 // ---------- Vistas ----------
 function showLogin() {
@@ -19,11 +24,46 @@ function showLogin() {
 }
 
 async function showApp(user) {
+  currentUser = user;
   $("login-view").hidden = true;
   $("app-view").hidden = false;
   $("user-info").textContent = `${user.name} · ${ROLES[user.role] ?? user.role}`;
+  applyRole(user);
+  setView("mapa");
   initMap();
   await loadZones();
+  initDespachoForm(features);
+  if (user.role === "analista") await loadMetrics();
+}
+
+// Muestra solo lo que corresponde al rol (la seguridad real la da el backend)
+function applyRole(user) {
+  document.body.dataset.role = user.role;
+  document.querySelectorAll("[data-roles]").forEach((el) => {
+    el.dataset.roleOk = el.dataset.roles.split(" ").includes(user.role) ? "1" : "0";
+  });
+  document.querySelectorAll("#tabs button").forEach((b) => {
+    b.hidden = b.dataset.roleOk !== "1";
+  });
+  $("heat-controls").hidden = user.role !== "analista";
+}
+
+function setView(name) {
+  const tab = document.querySelector(`#tabs button[data-view="${name}"]`);
+  if (!tab || tab.dataset.roleOk !== "1") return; // rol sin acceso a esa vista
+  activeView = name;
+  document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
+  document.querySelectorAll("#tabs button").forEach((b) =>
+    b.classList.toggle("active", b.dataset.view === name)
+  );
+  if (name === "mapa" && map) setTimeout(() => map.invalidateSize(), 0);
+  if (name === "ops") guard(() => loadOps(currentUser.role));
+  if (name === "kpis") guard(loadKpis);
+}
+
+// Si la sesión caducó (401), vuelve al login
+async function guard(fn) {
+  try { await fn(); } catch (err) { if (err.status === 401) showLogin(); }
 }
 
 // ---------- Mapa ----------
@@ -37,8 +77,57 @@ function initMap() {
   layerGroup = L.layerGroup().addTo(map);
 }
 
-const baseStyle = (f) => ({ color: colorOf(f.properties.borough), weight: 1, fillOpacity: 0.25 });
-const activeStyle = (f) => ({ color: colorOf(f.properties.borough), weight: 3, fillOpacity: 0.5 });
+// ---------- Capa de métricas (analista) ----------
+const CLUSTER_COLORS = { baja: "#16a34a", media: "#f59e0b", alta: "#dc2626" };
+
+function slowColor(pct) {
+  if (pct == null) return "#6b7385";
+  if (pct < 15) return "#16a34a";
+  if (pct < 25) return "#f59e0b";
+  return "#dc2626";
+}
+
+async function loadMetrics() {
+  try {
+    const rows = await api.zonasMetricas();
+    metricsById = new Map(rows.map((r) => [r.zone_id, r]));
+  } catch (err) {
+    if (err.status === 401) return showLogin();
+    metricsById = new Map();
+  }
+  render();
+}
+
+function featureColor(f) {
+  if (heatMode === "slow_pct") return slowColor(metricsById.get(f.properties.zone_id)?.slow_pct);
+  if (heatMode === "cluster") return CLUSTER_COLORS[metricsById.get(f.properties.zone_id)?.cluster] ?? "#6b7385";
+  return colorOf(f.properties.borough);
+}
+
+function renderLegend() {
+  const el = $("legend");
+  const items =
+    heatMode === "slow_pct"
+      ? [["#16a34a", "< 15%"], ["#f59e0b", "15–25%"], ["#dc2626", "≥ 25%"], ["#6b7385", "sin datos"]]
+      : heatMode === "cluster"
+      ? [["#16a34a", "baja"], ["#f59e0b", "media"], ["#dc2626", "alta"], ["#6b7385", "sin datos"]]
+      : [];
+  el.hidden = items.length === 0;
+  el.replaceChildren(
+    ...items.map(([color, label]) => {
+      const s = document.createElement("span");
+      const dot = document.createElement("i");
+      dot.style.background = color;
+      s.append(dot, document.createTextNode(label));
+      return s;
+    })
+  );
+}
+
+//const baseStyle = (f) => ({ color: colorOf(f.properties.borough), weight: 1, fillOpacity: 0.25 });
+//const activeStyle = (f) => ({ color: colorOf(f.properties.borough), weight: 3, fillOpacity: 0.5 });
+const baseStyle = (f) => ({ color: featureColor(f), weight: 1, fillOpacity: heatMode === "borough" ? 0.25 : 0.45 });
+const activeStyle = (f) => ({ color: featureColor(f), weight: 3, fillOpacity: 0.65 });
 
 async function loadZones() {
   $("zones-error").hidden = true;
@@ -88,7 +177,9 @@ function render() {
       btn.className = f.properties.zone_id === selectedId ? "active" : "";
       const dot = document.createElement("span");
       dot.className = "dot";
-      dot.style.background = colorOf(f.properties.borough);
+      //dot.style.background = colorOf(f.properties.borough);
+      // El punto de color de la lista
+      dot.style.background = featureColor(f);
       const name = document.createElement("span");
       name.textContent = f.properties.zone;
       const meta = document.createElement("small");
@@ -100,6 +191,7 @@ function render() {
     })
   );
   if (selectedId && layersById.has(selectedId)) layersById.get(selectedId).setStyle(activeStyle);
+  renderLegend();
 }
 
 function select(id, fit = false) {
@@ -120,6 +212,15 @@ function select(id, fit = false) {
   p.className = "muted";
   p.textContent = `${f.properties.borough} · LocationID ${f.properties.zone_id}`;
   info.replaceChildren(title, p);
+
+  const m = metricsById.get(id);
+  if (currentUser?.role === "analista" && m) {
+    const q = document.createElement("p");
+    q.textContent =
+      `${m.trips.toLocaleString("es-MX")} viajes · ${m.avg_speed_kmh} km/h · ` +
+      `${m.slow_pct}% lentos` + (m.cluster ? ` · congestión ${m.cluster}` : "");
+    info.append(q);
+  }
   info.hidden = false;
 }
 
@@ -151,15 +252,36 @@ $("logout-btn").addEventListener("click", async () => {
   try { await api.logout(); } catch { /* sesión ya caducada */ }
   selectedId = null;
   $("zone-info").hidden = true;
+
+  currentUser = null;
+  metricsById = new Map();
+  heatMode = "borough";
+  $("heat-mode").value = "borough";
+
   showLogin();
 });
 
 $("search").addEventListener("input", render);
 $("borough-filter").addEventListener("change", render);
 
+$("tabs").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-view]");
+  if (b) setView(b.dataset.view);
+});
+
+$("heat-mode").addEventListener("change", (e) => {
+  heatMode = e.target.value;
+  render();
+});
+
+bindDespachoForm(() => {
+  if (activeView === "ops") guard(() => loadOps(currentUser.role));
+});
+
 // ---------- Arranque: ¿ya hay sesión? ----------
 try {
   await showApp(await api.me());
 } catch {
+  
   showLogin();
 }

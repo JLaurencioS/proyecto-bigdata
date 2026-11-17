@@ -14,6 +14,8 @@ tags:
   - name: Sistema
   - name: Autenticación
   - name: Zonas
+  - name: Despachos
+  - name: Analítica
 
 paths:
   /api/health:
@@ -132,6 +134,93 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/despachos:
+    get:
+      tags: [Despachos]
+      summary: Lista operaciones (el despachador ve las suyas; el analista, todas)
+      operationId: listDespachos
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Operaciones, de la más reciente a la más antigua
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Despacho"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Despachos]
+      summary: Registrar una operación (solo despachador)
+      operationId: createDespacho
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DespachoCreate"
+      responses:
+        "201":
+          description: Operación creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Despacho"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/kpis:
+    get:
+      tags: [Analítica]
+      summary: KPIs operativos agregados (solo analista)
+      operationId: getKpis
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: KPIs globales y por hora
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kpis"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/zonas/metricas:
+    get:
+      tags: [Analítica]
+      summary: Métricas por zona para el mapa de calor (solo analista)
+      operationId: getZonasMetricas
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Una fila por zona
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ZonaMetrica"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
 components:
   securitySchemes:
@@ -238,6 +327,78 @@ components:
                     type: string
                     example: Manhattan
 
+    DespachoCreate:
+      type: object
+      required: [origin_zone, dest_zone, departure_time, vehicle_id]
+      additionalProperties: false
+      properties:
+        origin_zone: { type: integer, minimum: 1, maximum: 265 }
+        dest_zone: { type: integer, minimum: 1, maximum: 265 }
+        departure_time: { type: string, format: date-time }
+        vehicle_id:
+          type: string
+          pattern: "^V-[0-9]{2}$"
+          example: V-07
+
+    Despacho:
+      type: object
+      required: [id, origin_zone, dest_zone, departure_time, vehicle_id, status, created_by, created_at]
+      properties:
+        id: { type: string }
+        origin_zone: { type: integer }
+        dest_zone: { type: integer }
+        departure_time: { type: string, format: date-time }
+        vehicle_id: { type: string }
+        status:
+          type: string
+          enum: [programado, en_ruta, completado, cancelado]
+        predicted_duration_min:
+          type: number
+          nullable: true
+          description: Se llena cuando exista el ml-service
+        recommended_departure:
+          type: string
+          format: date-time
+          nullable: true
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+
+    Kpis:
+      type: object
+      required: [totals, by_hour]
+      properties:
+        updated_at: { type: string, format: date-time, nullable: true }
+        totals:
+          type: object
+          required: [trips, avg_duration_min, avg_speed_kmh, slow_pct]
+          properties:
+            trips: { type: integer }
+            avg_duration_min: { type: number }
+            avg_speed_kmh: { type: number }
+            slow_pct: { type: number }
+        by_hour:
+          type: array
+          items:
+            type: object
+            required: [hour, trips, avg_duration_min]
+            properties:
+              hour: { type: integer, minimum: 0, maximum: 23 }
+              trips: { type: integer }
+              avg_duration_min: { type: number }
+
+    ZonaMetrica:
+      type: object
+      required: [zone_id, trips, avg_speed_kmh, slow_pct]
+      properties:
+        zone_id: { type: integer }
+        trips: { type: integer }
+        avg_speed_kmh: { type: number }
+        slow_pct: { type: number }
+        cluster:
+          type: string
+          enum: [baja, media, alta]
+          nullable: true
+
   responses:
     BadRequest:
       description: Solicitud inválida
@@ -261,3 +422,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    
+    Forbidden:
+      description: El rol no tiene permiso para esta acción
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: { code: FORBIDDEN, message: No tienes permisos para esta acción }

@@ -20,6 +20,10 @@ export async function connectDb() {
 async function ensureIndexes(database) {
   // Un usuario por username (lo usaremos en el login)
   await database.collection("users").createIndex({ username: 1 }, { unique: true });
+  // Zonas de NYC (GeoJSON): id de TLC único + índice geoespacial
+  const zonas = database.collection("zonas");
+  await zonas.createIndex({ zone_id: 1 }, { unique: true });
+  await zonas.createIndex({ geometry: "2dsphere" });
 }
 
 export function getClient() {

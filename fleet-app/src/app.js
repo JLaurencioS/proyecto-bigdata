@@ -13,12 +13,15 @@ import { sessionCookieHandler } from "./middleware/auth.js";
 import { notFound, errorHandler } from "./middleware/errors.js";
 import healthRouter from "./routes/health.js";
 
-import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.js";
+import zonasRouter from "./routes/zonas.js";
+
+import cookieParser from "cookie-parser";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const specPath = path.resolve(__dirname, "../openapi.yml");
 const publicDir = path.resolve(__dirname, "../public");
+const leafletDir = path.resolve(__dirname, "../node_modules/leaflet/dist");
 
 export function createApp() {
   const app = express();
@@ -30,6 +33,8 @@ export function createApp() {
   // CSP preparada para Leaflet (paso 4): scripts propios y tiles de OpenStreetMap.
   app.use(
     helmet({
+      // OSM exige el Referer; helmet lo quita por defecto ("no-referrer")
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
       contentSecurityPolicy: {
         useDefaults: true,
         directives: {
@@ -44,11 +49,12 @@ export function createApp() {
 
   // --- Frontend estático (no necesita sesión) ---
   app.use(express.static(publicDir));
+  // Leaflet servido localmente: la CSP no permite scripts de CDNs
+  app.use("/vendor/leaflet", express.static(leafletDir));
 
   // --- Body JSON (límite pequeño: nuestra API solo recibe objetos chicos) ---
   app.use(express.json({ limit: "100kb" }));
 
-  // --- Cookies ---
   app.use(cookieParser());
 
   // --- Sesión en MongoDB ---
@@ -113,7 +119,7 @@ export function createApp() {
   // --- Rutas ---
   app.use("/api", healthRouter);
   app.use("/api/auth", authRouter);
-  // paso 5: app.use("/api", zonasRouter);
+  app.use("/api", zonasRouter);
 
   // --- Errores ---
   app.use(notFound);

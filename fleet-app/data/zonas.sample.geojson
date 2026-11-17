@@ -1,0 +1,12 @@
+{
+  "type": "FeatureCollection",
+  "name": "MUESTRA aproximada para desarrollo (no son los límites oficiales de TLC)",
+  "features": [
+    {"type":"Feature","properties":{"zone_id":161,"zone":"Midtown Center","borough":"Manhattan"},"geometry":{"type":"Polygon","coordinates":[[[-73.985,40.752],[-73.972,40.758],[-73.977,40.764],[-73.990,40.758],[-73.985,40.752]]]}},
+    {"type":"Feature","properties":{"zone_id":236,"zone":"Upper East Side North","borough":"Manhattan"},"geometry":{"type":"Polygon","coordinates":[[[-73.957,40.776],[-73.945,40.781],[-73.950,40.790],[-73.962,40.785],[-73.957,40.776]]]}},
+    {"type":"Feature","properties":{"zone_id":132,"zone":"JFK Airport","borough":"Queens"},"geometry":{"type":"Polygon","coordinates":[[[-73.820,40.630],[-73.760,40.630],[-73.760,40.665],[-73.820,40.665],[-73.820,40.630]]]}},
+    {"type":"Feature","properties":{"zone_id":138,"zone":"LaGuardia Airport","borough":"Queens"},"geometry":{"type":"Polygon","coordinates":[[[-73.890,40.765],[-73.855,40.765],[-73.855,40.782],[-73.890,40.782],[-73.890,40.765]]]}},
+    {"type":"Feature","properties":{"zone_id":61,"zone":"Crown Heights North","borough":"Brooklyn"},"geometry":{"type":"Polygon","coordinates":[[[-73.950,40.668],[-73.930,40.668],[-73.930,40.682],[-73.950,40.682],[-73.950,40.668]]]}},
+    {"type":"Feature","properties":{"zone_id":3,"zone":"Allerton/Pelham Gardens","borough":"Bronx"},"geometry":{"type":"Polygon","coordinates":[[[-73.870,40.860],[-73.845,40.860],[-73.845,40.875],[-73.870,40.875],[-73.870,40.860]]]}}
+  ]
+}
